@@ -1,0 +1,116 @@
+// `.ui`形式(v1)の型定義。F1-foundation.mdの「`.ui`形式(v1)」の表をそのままTypeScriptの
+// 型にしたもの。このファイルは値を持たない(型とごく小さな定数表のみ)。
+//
+// 依存の向き(ADR-0001 / F1-foundation.md): src/core/ はReactもTauriもimportしない。
+// src/codegen/ と src/preview/ がこちらに依存する一方向のみ。
+
+/** 列挙値。キーはタスクシートの表の見出しと対応させてある。 */
+export type Gap = "none" | "xs" | "sm" | "md" | "lg";
+export type Padding = Gap;
+export type Align = "start" | "center" | "end" | "stretch";
+export type Surface = "glass" | "opaque" | "none";
+export type Radius = "none" | "md" | "lg" | "full";
+export type TextSize = "sm" | "md" | "lg";
+export type Anchor =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "center-left"
+  | "center"
+  | "center-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+export type Margin = "none" | "sm" | "md" | "lg";
+
+/** プロパティの値はリテラルかbindのどちらか(F1-foundation.md「値の書き方」)。 */
+export interface Bind {
+  bind: string;
+}
+
+/** イベントはProps側の関数になる(値ではなくeventという別キー)。 */
+export interface EventRef {
+  event: string;
+}
+
+export type BoolValue = boolean | Bind;
+export type StringValue = string | Bind;
+export type SurfaceValue = Surface | Bind;
+
+export interface Slot {
+  anchor: Anchor;
+  margin?: Margin;
+}
+
+/** 部品ごとのprops。キーは部品表(F1-foundation.md)のとおり。 */
+export interface CanvasProps {
+  // Canvasにpropsは無い。空オブジェクトのみ許される。
+  [key: string]: never;
+}
+
+export interface BoxProps {
+  gap?: Gap;
+  padding?: Padding;
+  align?: Align;
+}
+
+export interface PanelProps {
+  surface?: SurfaceValue;
+  radius?: Radius;
+  padding?: Padding;
+  shadow?: boolean;
+}
+
+export interface TextProps {
+  text?: StringValue;
+  size?: TextSize;
+}
+
+export interface ButtonProps {
+  label?: StringValue;
+  active?: BoolValue;
+  onClick?: EventRef;
+}
+
+export type WidgetProps = CanvasProps | BoxProps | PanelProps | TextProps | ButtonProps;
+
+export type WidgetType = "Canvas" | "HBox" | "VBox" | "Panel" | "Text" | "Button";
+
+export interface Widget {
+  id: string;
+  type: WidgetType;
+  /** 親がCanvasのときだけ書ける(意味検証。validate.ts参照)。 */
+  slot?: Slot;
+  props?: WidgetProps;
+  /** コンテナ部品だけ持てる(意味検証。validate.ts参照)。 */
+  children?: Widget[];
+}
+
+export interface UiDocument {
+  $schema?: string;
+  version: 1;
+  component: string;
+  root: Widget;
+}
+
+/** 子を持てる部品の一覧。validate.ts(children可否の判定)とgenerate.ts/render.tsx
+ * (コンテナかどうかでレイアウトの組み方を変える)の両方から参照される、唯一の置き場。 */
+export const CONTAINER_TYPES: readonly WidgetType[] = ["Canvas", "HBox", "VBox", "Panel"];
+
+export function isContainerType(type: WidgetType): boolean {
+  return (CONTAINER_TYPES as readonly string[]).includes(type);
+}
+
+/** bindした場合の値の種類。Propsの型生成(bindings.ts)と、同じbind名を型の違う
+ * プロパティで使っていないかのチェック(validate.ts)の両方がこれで値の種類を比べる。 */
+export type BindKind = "boolean" | "string" | "surface";
+
+/** 部品の型ごとに、どのプロパティがbind可能で、bindした場合の値の種類は何か
+ * (F1-foundation.mdの部品表で「bind可」と書かれているもの)。
+ * bind不可のプロパティ(gap/padding/align/radius/shadow/size)はスキーマが
+ * 元からリテラルしか許さないので、ここには出てこない。 */
+export const BINDABLE_PROPS: Readonly<Record<string, Readonly<Record<string, BindKind>>>> = {
+  Panel: { surface: "surface" },
+  Text: { text: "string" },
+  Button: { label: "string", active: "boolean" },
+};

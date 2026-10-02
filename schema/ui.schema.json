@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ui-forge.local/ui.schema.json",
+  "title": "ui-forge .ui document (v1)",
+
+  "$comment": "ADR-0001の方針どおり、このスキーマが見るのは「1個のWidgetの形として正しいか」だけ。id の重複・slot は親が Canvas のときだけ・bind 名の型一致・children を持てる個数、といった複数の部品にまたがる判断は src/core/validate.ts の意味検証が担当する(F1-foundation.mdの work items参照)。この分担により、このファイルは『部品ごとに何が書けるか』の一覧として読める。",
+
+  "type": "object",
+  "required": ["version", "component", "root"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "component": {
+      "type": "string",
+      "pattern": "^[A-Z][a-zA-Z0-9]*$",
+      "description": "生成されるコンポーネント名。PascalCase。"
+    },
+    "root": { "$ref": "#/$defs/widget" }
+  },
+
+  "$defs": {
+    "bind": {
+      "type": "object",
+      "required": ["bind"],
+      "additionalProperties": false,
+      "properties": {
+        "bind": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": ["event"],
+      "additionalProperties": false,
+      "properties": {
+        "event": { "type": "string", "pattern": "^on[A-Z][a-zA-Z0-9]*$" }
+      }
+    },
+    "stringOrBind": {
+      "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/bind" }]
+    },
+    "boolOrBind": {
+      "oneOf": [{ "type": "boolean" }, { "$ref": "#/$defs/bind" }]
+    },
+    "gapOrPadding": { "enum": ["none", "xs", "sm", "md", "lg"] },
+    "align": { "enum": ["start", "center", "end", "stretch"] },
+    "surface": { "enum": ["glass", "opaque", "none"] },
+    "surfaceOrBind": {
+      "oneOf": [{ "$ref": "#/$defs/surface" }, { "$ref": "#/$defs/bind" }]
+    },
+    "radius": { "enum": ["none", "md", "lg", "full"] },
+    "textSize": { "enum": ["sm", "md", "lg"] },
+    "anchor": {
+      "enum": [
+        "top-left",
+        "top-center",
+        "top-right",
+        "center-left",
+        "center",
+        "center-right",
+        "bottom-left",
+        "bottom-center",
+        "bottom-right"
+      ]
+    },
+    "margin": { "enum": ["none", "sm", "md", "lg"] },
+
+    "slot": {
+      "type": "object",
+      "required": ["anchor"],
+      "additionalProperties": false,
+      "properties": {
+        "anchor": { "$ref": "#/$defs/anchor" },
+        "margin": { "$ref": "#/$defs/margin" }
+      }
+    },
+
+    "widget": {
+      "type": "object",
+      "required": ["id", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "snake_case。文書内で一意(一意性はvalidate.tsが見る)。"
+        },
+        "type": {
+          "enum": ["Canvas", "HBox", "VBox", "Panel", "Text", "Button"]
+        },
+        "slot": { "$ref": "#/$defs/slot" },
+        "props": { "type": "object" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/widget" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "Canvas" } } },
+          "then": {
+            "properties": {
+              "props": { "type": "object", "additionalProperties": false }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["HBox", "VBox"] } } },
+          "then": {
+            "properties": {
+              "props": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "gap": { "$ref": "#/$defs/gapOrPadding" },
+                  "padding": { "$ref": "#/$defs/gapOrPadding" },
+                  "align": { "$ref": "#/$defs/align" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Panel" } } },
+          "then": {
+            "properties": {
+              "props": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "surface": { "$ref": "#/$defs/surfaceOrBind" },
+                  "radius": { "$ref": "#/$defs/radius" },
+                  "padding": { "$ref": "#/$defs/gapOrPadding" },
+                  "shadow": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Text" } } },
+          "then": {
+            "properties": {
+              "props": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "text": { "$ref": "#/$defs/stringOrBind" },
+                  "size": { "$ref": "#/$defs/textSize" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Button" } } },
+          "then": {
+            "properties": {
+              "props": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "label": { "$ref": "#/$defs/stringOrBind" },
+                  "active": { "$ref": "#/$defs/boolOrBind" },
+                  "onClick": { "$ref": "#/$defs/event" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
