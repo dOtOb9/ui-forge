@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* F1-4: プレビュー画面はウィンドウ全面を使う(値パネル/イベントログと並べるため)。
+   html/body/#rootがビューポート全体の高さを持たないと、flexレイアウトが
+   縮んでしまう。point-cloud-viewer(src/index.css)と同じ対処。 */
+html,
+body,
+#root {
+  height: 100%;
+}

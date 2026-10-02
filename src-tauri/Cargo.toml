@@ -1,0 +1,24 @@
+[package]
+name = "ui-forge-tauri"
+version = "0.1.0"
+description = "ui-forge preview app - Tauri shell"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+
+[lib]
+# `_lib`サフィックスの理由はpoint-cloud-viewer(src-tauri/Cargo.toml)と同じ
+# (binクレートと名前が衝突しないようにするため。Windowsでのみ問題になる)。
+name = "ui_forge_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# F1-4: 開いている.uiファイルの変更をRust側で監視する(タスクシートが
+# 明示的に許可している追加依存。F1-foundation.mdの「技術スタック」参照)。
+notify = "6"
