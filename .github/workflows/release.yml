@@ -1,30 +1,124 @@
 name: Release
 
-# P1-platforms.md「Androidのビルド」。この端末にはAndroid SDK/NDKが無いため、
-# AndroidのAPKはGitHub Actionsでビルドする(point-cloud-viewerと同じ理由)。
+# P1-platforms.md時点ではタグ・Releaseを作らずAPKをワークフロー成果物に
+# 留めていたが、D1(TaskSheets/D1-delivery.md)でpoint-cloud-viewerと同じ
+# 「タグを打てばWindows/AndroidがGitHub Releasesに揃う」形に広げた。
+# ジョブの分け方・コメントの書き方はpoint-cloud-viewerのrelease.ymlに
+# 揃えてある。ui-forgeに無いもの(wasmのビルド、更新マニフェストの署名、
+# Tauriのupdater)は持ち込まない。
 #
-# point-cloud-viewerのrelease.ymlと違い、ui-forgeにはまだWindows用の
-# インストーラをGitHub Releaseに添付する仕組みが無い(タスクシートの範囲外。
-# このマイルストーンが対象にしているのは「プレビューアプリが各端末で単独で
-# 動くこと」で、配布の仕組みそのものはまだ要らない)。そのためタグ・Releaseは
-# 作らず、ビルドしたAPKをワークフロー実行の成果物(actions/upload-artifact)
-# として残すだけにしてある。Releaseへの添付が要る段になったら、
-# point-cloud-viewerのandroidジョブ(softprops/action-gh-release等)を
-# 参考に足す。
-#
-# workflow_dispatch: タグを打たずに手動で試すための経路(point-cloud-viewerの
-# release.ymlと同じ理由)。ui-forgeにはまだGitHubのリモートが無いため、
-# 所有者がリポジトリを作ってpushした後でなければどちらのトリガーも動かない
-# (「ui-forgeにはまだGitHubのリモートが無い。リポジトリの作成とプッシュは
-# 所有者が行う。実装者はワークフローのファイルを書くところまで」)。
+# workflow_dispatch: タグを打たずに手動で走らせる経路(point-cloud-viewerと
+# 同じ理由)。Releaseへの添付はタグpush時だけ行う(下記の各アップロードstepを
+# `startsWith(github.ref, 'refs/tags/')`で止めている)。手動実行では
+# ビルドの成否だけを確認する。
 on:
   push:
     tags: ["v*"]
   workflow_dispatch: {}
 
 jobs:
-  android:
+  # タグとpackage.json/tauri.conf.json/Cargo.tomlのversionが食い違ったまま
+  # Releaseを作ってしまうと、利用者から見たバージョン表示が混乱する。ここで
+  # 検査し、違っていたら他のジョブが始まる前に落とす(黙って進めない。
+  # D1-delivery.md受け入れ基準2)。
+  #
+  # workflow_dispatchでの手動実行はタグ経由ではない(github.refがブランチになる)
+  # ため、この検査自体を意味を持たせられない。タグpush時だけ実行する。
+  check-version:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: タグとpackage.json/tauri.conf.json/Cargo.tomlのversionが一致することを確認する
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg_version=$(node -p "require('./package.json').version")
+          conf_version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          # Cargo.tomlはJSONではないのでnode -pでは読めない。[package]直下の
+          # versionキーは1行目の`version = "x.y.z"`としてしか出てこない
+          # (他にdependenciesのversionもあるが、それより先に出現する
+          # [package]のversionだけをgrep -m1で拾う)。
+          cargo_version=$(grep -m1 '^version = ' src-tauri/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          if [ "$tag" != "$pkg_version" ] || [ "$tag" != "$conf_version" ] || [ "$tag" != "$cargo_version" ]; then
+            echo "::error::タグ(${GITHUB_REF_NAME})と版が一致しません(package.json=${pkg_version}, tauri.conf.json=${conf_version}, src-tauri/Cargo.toml=${cargo_version})。タグを打つ前に'node scripts/bump-version.mjs <版>'で3ファイルを揃えてください。"
+            exit 1
+          fi
+          echo "OK: v${tag} でタグと3ファイルの版が一致しています。"
+
+  # Windows向けのNSISインストーラをビルドし、GitHub Releasesに添付する。
+  #
+  # F1時点ではtauri.conf.jsonの`bundle.active`を`false`にしていた(インストーラが
+  # 要らなかったため)。D1で配布が要るようになったので`true`にし、`targets`を
+  # `["nsis"]`だけに絞った(point-cloud-viewerはmsiも作るが、ui-forgeはタスク
+  # シートの指定どおりNSISだけで良い。インストーラ形式を増やすと検証対象も増える)。
+  #
+  # 所有者の方針は当面コード署名をしない(point-cloud-viewerのADR-0004と同じ)。
+  # そのためTAURI_SIGNING_PRIVATE_KEY等のSecretsは参照せず、無署名のまま
+  # ビルドする。無署名のインストーラはWindows SmartScreenの警告が出る。
+  # これはリリース本文に明記する。
+  windows:
+    needs: check-version
+    runs-on: windows-latest
+    # GitHub Releaseの作成・アセット添付にはデフォルトのGITHUB_TOKENに
+    # contents: write権限が要る(point-cloud-viewerのrelease.ymlと同じ理由)。
+    # 他の権限は使わないので必要最小限としてcontents: writeだけをこのジョブに付ける。
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      # ui-forgeにはルートのCargoワークスペースが無く、src-tauriが単独のクレート
+      # なので、ci.ymlのrustジョブと同じくworkspacesをsrc-tauriに明示する。
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: tauri build (nsisのみ、無署名)
+        run: npm run tauri build
+      # ui-forgeはルートにCargoワークスペースが無いため、ビルド成果物は
+      # point-cloud-viewerと違い**src-tauri/target/**に出る(cargoの既定、
+      # Cargo.tomlのあるディレクトリ基準)。ここで実際の出力を毎回ログに残し、
+      # パスの思い違いで添付し忘れる事故(point-cloud-viewerのM3-1で実際に起きた)
+      # に次こそ気付けるようにする。
+      - name: ビルド成果物を確認する
+        shell: bash
+        run: |
+          echo "--- src-tauri/target/release/bundle 以下 ---"
+          find src-tauri/target/release/bundle -type f 2>&1 || echo "(src-tauri/target/release/bundle が見つかりません)"
+      - name: Upload installer to GitHub Release
+        # workflow_dispatchでの手動実行ではReleaseを作らない(ビルド確認だけの経路)。
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/bundle/nsis/*.exe
+          # 添付対象のファイルが1つも見つからない場合、既定ではこのstep自体は
+          # 「成功」してしまい、インストーラ抜きのReleaseがそのまま公開される
+          # (point-cloud-viewerのM3-1で実際に発生した)。必ずジョブを落として気付けるようにする。
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          body: |
+            **このインストーラには署名がありません。** Windows SmartScreenが
+            「発行元不明」の警告を出す場合がありますが、コード署名証明書を
+            導入していないためです(範囲外。point-cloud-viewerと同じ判断)。
+
+  # Android向けのdebug署名APKをビルドし、GitHub Releasesに添付する。
+  # 手順自体はP1-platforms.md(P1-4)のandroidジョブをそのまま使い、
+  # タグのときだけRelease添付を足した。windowsジョブとは独立させ、
+  # こちらが失敗してもWindowsのリリースは成立する。ただしGitHub Release自体の
+  # 作成/アセット追加が競合しないよう、windowsジョブの後に実行する
+  # (windowsの成否そのものには依存しない。ifでcheck-versionの成功だけを条件にする)。
+  android:
+    needs: [check-version, windows]
+    if: ${{ !cancelled() && needs.check-version.result == 'success' }}
+    runs-on: ubuntu-latest
+    # windowsジョブと同じ理由(GitHub Releaseへのアセット添付にはcontents: writeが要る)。
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -113,6 +207,33 @@ jobs:
         run: |
           echo "--- src-tauri/gen/android/app/build/outputs/apk 以下 ---"
           find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' -exec ls -lh {} \; 2>&1 || echo "(APKが見つかりません)"
+      # D1-delivery.mdの指定で添付ファイル名に版を含める(例:
+      # ui-forge_0.1.0_android-aarch64.apk)。署名済みAPKを版入りの名前で
+      # 別ディレクトリ(release-assets/)にコピーしておく。既存の
+      # upload-artifact(下)のglobはsrc-tauri/gen配下しか見ないので、
+      # ここに置いたコピーは実行ごとの成果物には重複して入らない。
+      - name: APKをRelease添付用に版入りの名前でコピーする
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          signed=$(find src-tauri/gen/android/app/build/outputs/apk -name '*-signed.apk')
+          mkdir -p release-assets
+          cp "$signed" "release-assets/ui-forge_${version}_android-aarch64.apk"
+      - name: Upload APK to GitHub Release
+        # workflow_dispatchでの手動実行ではReleaseを作らない(ビルド確認だけの経路)。
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*.apk
+          # windowsジョブと同じ理由。ファイルが1つも見つからない場合に黙って
+          # 「成功」させない。
+          fail_on_unmatched_files: true
+      # 手動実行(workflow_dispatch)でもAPKをワークフロー実行の成果物として
+      # 残す。タグを打たずに`gh workflow run release.yml`→`gh run download`で
+      # 試験用APKを取れる経路(point-cloud-viewerのADR-0013と同じ理由)。
+      # タグ・Release作成の経路には一切影響しない(ifを付けず常に実行するが、
+      # Release用のアップロードとは別物)。
       - name: APKをワークフロー成果物として保存する
         uses: actions/upload-artifact@v4
         with:
