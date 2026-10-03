@@ -14,6 +14,18 @@ export interface OpenedFile {
   read(): Promise<string>;
   /** 中身が変わるたびにhandlerを呼ぶ。返り値を呼ぶと止まる。 */
   watch(handler: () => void): () => void;
+  /**
+   * 書き込みができるか。falseなら`write()`は呼ばない(F2-editor.md「このブラウザでは
+   * 書けない」経路。File System Access APIを持たないブラウザの`<input>`経由)。
+   * エディタ(src/preview/editor/)はこれを見て、falseならDetailsを無効化し
+   * 理由を出す(読み取り専用)。
+   */
+  readonly supportsWrite: boolean;
+  /**
+   * 正規化済みテキストをファイルに書く。`supportsWrite`がfalseの実装では
+   * 呼ばれない前提(呼ばれたら例外を投げる)。
+   */
+  write(text: string): Promise<void>;
 }
 
 export interface FileHost {

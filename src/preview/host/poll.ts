@@ -17,20 +17,42 @@
  *
  * 返り値の関数を呼ぶと止まる。止めた後に進行中だった取得が後から戻ってきても
  * `onChange`は呼ばれない(受け入れ基準1)。
+ *
+ * F2-editor.md「設計 6: P1からの持ち越し」: `getSnapshot()`はファイルの削除や
+ * Androidのアクセス権切れで失敗することがある。元の実装(P1)は`await`の失敗を
+ * 捕まえておらず、ハンドルされないPromiseの拒否が1秒ごとに繰り返されていた
+ * (platforms.mdの「既知の弱点」参照)。ここで失敗を捕まえ、**成功するまで
+ * 1回だけ**`onError`を呼ぶ(受け入れ基準5)。次に成功したら、また1回だけ
+ * 通知できる状態に戻る。
  */
 export function pollForChange<T>(
   getSnapshot: () => Promise<T>,
   equals: (a: T, b: T) => boolean,
   onChange: () => void,
+  onError: (error: unknown) => void,
   intervalMs = 1000,
 ): () => void {
   let stopped = false;
   let last: T | undefined;
   let hasLast = false;
+  // 失敗を既に通知済みか。成功するまでtrueのままにして、同じ失敗を毎秒
+  // 通知し続けないようにする(次に成功したらfalseに戻し、また1回だけ通知できる)。
+  let errorNotified = false;
 
   const checkOnce = async () => {
-    const snapshot = await getSnapshot();
+    let snapshot: T;
+    try {
+      snapshot = await getSnapshot();
+    } catch (e) {
+      if (stopped) return;
+      if (!errorNotified) {
+        errorNotified = true;
+        onError(e);
+      }
+      return;
+    }
     if (stopped) return;
+    errorNotified = false;
     if (hasLast && !equals(last as T, snapshot)) {
       onChange();
     }

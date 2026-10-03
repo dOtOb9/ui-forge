@@ -25,6 +25,26 @@ function sameSnapshot(
   return a.size === b.size && a.lastModified === b.lastModified;
 }
 
+/**
+ * F2-3「初回に読み書きの許可を求める」。`showOpenFilePicker`が渡すハンドルは
+ * 既定で読み取り権限しか無く、書き込むには`requestPermission({mode:
+ * "readwrite"})`で読み書き権限への引き上げを別途求める必要がある
+ * (ブラウザの確認ダイアログが出るのは実際にこれを呼んだときだけなので、
+ * ファイルを開いた直後ではなく、実際に書き込もうとした最初の1回に遅延させる。
+ * `requestPermission`自体はブラウザが既に許可済みなら即座にgrantedを返すので、
+ * 2回目以降の`write()`では確認は出ない)。
+ *
+ * `requestPermission`はlib.dom.d.ts未収録の実験的APIなので無い場合もある
+ * (file-system-access.d.ts参照)。無ければ権限確認自体をスキップし、
+ * `createWritable()`に直接委ねる(それでも権限が無ければそちらが失敗する)。
+ */
+async function ensureWritePermission(handle: FileSystemFileHandle): Promise<void> {
+  const state = await handle.requestPermission?.({ mode: "readwrite" });
+  if (state !== undefined && state !== "granted") {
+    throw new Error("このファイルへの書き込みが許可されませんでした");
+  }
+}
+
 export const webFileSystemAccessHost: FileHost = {
   supportsAutoReload: true,
 
@@ -46,7 +66,14 @@ export const webFileSystemAccessHost: FileHost = {
     const file: OpenedFile = {
       displayName: handle.name,
       read: async () => (await handle.getFile()).text(),
-      watch: (handler) => pollForChange(() => snapshotOf(handle), sameSnapshot, handler),
+      supportsWrite: true,
+      async write(text) {
+        await ensureWritePermission(handle);
+        const writable = await handle.createWritable();
+        await writable.write(text);
+        await writable.close();
+      },
+      watch: (handler) => pollForChange(() => snapshotOf(handle), sameSnapshot, handler, handler),
     };
     return file;
   },
@@ -102,6 +129,10 @@ export const webInputFallbackHost: FileHost = {
     return {
       displayName: file.name,
       read: () => Promise.resolve(content),
+      // <input type="file">には書き込む標準の手段が無い。エディタはこれを見て
+      // 読み取り専用にする(F2-editor.md「設計3: 書き戻し」の表)。
+      supportsWrite: false,
+      write: () => Promise.reject(new Error("このブラウザではファイルに書き込めません(supportsWrite: false)")),
       // handlerは呼ばれない(変更検知はできない)。呼び出し側はunwatchできるよう
       // 空のunsubscribe関数だけ返す。
       watch: () => () => {},

@@ -11,7 +11,7 @@
 //
 // @tauri-apps/*のAPIを直接見てよいのはこのファイルとhost/tauri-desktop.ts・
 // host/tauri-platform.tsだけ(P1-platforms.md「Tauriのimportを閉じ込める」)。
-import { readTextFile } from "@tauri-apps/plugin-fs";
+import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { FileHost, OpenedFile } from "./FileHost";
 import { pollForChange } from "./poll";
@@ -25,7 +25,17 @@ function openedFileFor(uri: string): OpenedFile {
     // 必ずしもファイル名にならない)。
     displayName: uri,
     read: () => readTextFile(uri),
-    watch: (handler) => pollForChange(() => readTextFile(uri), (a, b) => a === b, handler),
+    // F2-3: plugin-fsのwriteTextFile()に`content://` URIをそのまま渡す
+    // (読み込みと同じ考え方)。capabilities/default.jsonに`fs:write-files`を
+    // 足した。**`content://`への書き込みがplugin-fsで実際にできるかは
+    // タスクシートの指定どおり未確認。**コンパイルは通るが、Android SDK/NDKが
+    // この端末に無く実機で確かめられない(TaskSheets/F2-editor.md 実装記録参照)。
+    supportsWrite: true,
+    write: (text) => writeTextFile(uri, text),
+    // ポーリングが失敗したとき(ファイル削除・アクセス権切れ)もhandlerを呼ぶ。
+    // handler自体はPreviewApp側の再読み込みで、読み込みが失敗すればそこで
+    // 「ファイルを読み込めません」の帯が出る(既存の仕組みにそのまま乗る)。
+    watch: (handler) => pollForChange(() => readTextFile(uri), (a, b) => a === b, handler, handler),
   };
 }
 

@@ -21,6 +21,13 @@ async function watchUiFile(path: string): Promise<void> {
   await invoke("watch_ui_file", { path });
 }
 
+// F2-3: 書き込みもRust側に足した`write_ui_file`コマンド経由(read_ui_fileと同じ
+// 理由。パスを直接扱えるのはデスクトップだけなので、Rustのstd::fs::writeに
+// そのまま任せられる)。
+async function writeUiFile(path: string, text: string): Promise<void> {
+  await invoke("write_ui_file", { path, text });
+}
+
 /**
  * pathのOpenedFileを作る。Rust側の監視(watch_ui_file)はwatch()が呼ばれた時点で
  * 開始する(pick()で選んだだけではまだ監視を始めない。「選ぶ」と「監視する」を
@@ -30,6 +37,8 @@ function openedFileFor(path: string): OpenedFile {
   return {
     displayName: path,
     read: () => readUiFile(path),
+    supportsWrite: true,
+    write: (text) => writeUiFile(path, text),
     watch(handler) {
       let unlisten: (() => void) | undefined;
       let cancelled = false;

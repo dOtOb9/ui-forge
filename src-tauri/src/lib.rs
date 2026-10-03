@@ -43,7 +43,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             is_android,
             watch::read_ui_file,
-            watch::watch_ui_file
+            watch::watch_ui_file,
+            watch::write_ui_file
         ]);
     #[cfg(mobile)]
     let builder = builder.invoke_handler(tauri::generate_handler![is_android]);
