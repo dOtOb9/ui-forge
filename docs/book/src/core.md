@@ -10,10 +10,9 @@
 [`src/core/model.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/core/model.ts) は値を持たない、型とごく小さな定数表だけのファイルです。
 [.ui 形式の章](./ui-format.md)の表はすべてここの型をそのまま書いたものです。
 
-`Canvas` に `props` が無いことは、`CanvasProps` という「キーを持てないオブジェクト型」
-(`[key: string]: never`) として表現されています。TypeScript では「空オブジェクト型」を
-素直に書くと余計なプロパティも通ってしまうため、この書き方で「キーが1つもない」ことを
-型チェッカに伝えています。
+`CanvasProps` は F1 の時点では「キーを持てないオブジェクト型」でしたが、I-0
+（[I0-viewer-readiness](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/I0-viewer-readiness.md)）で `layer`（3D ビューや他のパネルとの重なり順）を1つだけ持つ
+型になりました。`layer` は bind 不可で省略可能（省略時は何も付けない）です。
 
 `CONTAINER_TYPES`（コンテナになれる部品の一覧）と `BINDABLE_PROPS`（部品ごとに
 どのプロパティが bind 可能か）は、このファイルの定数としてここにだけ置かれています。

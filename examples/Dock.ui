@@ -5,6 +5,9 @@
   "root": {
     "id": "root",
     "type": "Canvas",
+    "props": {
+      "layer": "overlay"
+    },
     "children": [
       {
         "id": "dock",
@@ -19,7 +22,8 @@
           "shadow": true,
           "surface": {
             "bind": "surface"
-          }
+          },
+          "textSize": "sm"
         },
         "children": [
           {

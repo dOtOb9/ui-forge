@@ -13,10 +13,18 @@
 // 具体的な値の指定が無いため、実装記録に書いたとおりpoint-cloud-viewerの
 // Dock.tsx実物の値(gap-1, p-1.5, rounded-full, bottom-4など)と一致するように
 // 選んだ。
-import type { Align, Anchor, Gap, Margin, Padding, Radius, Surface, TextSize } from "./model";
+import type { Align, Anchor, Gap, Layer, Margin, Padding, Radius, Surface, TextSize } from "./model";
 
 /** Canvas自身のクラス。F1-foundation.md「クラスの対応表」の記述そのまま。 */
 export const CANVAS_CLASS = "pointer-events-none fixed inset-0";
+
+/** I0-viewer-readiness.md「語彙が2つ足りない」の表のとおり。`modal`がz-50なのは
+ * 本体(point-cloud-viewer)のGpuErrorBannerなどのz-indexと揃えるため。 */
+export const LAYER_CLASS: Readonly<Record<Layer, string>> = {
+  base: "z-10",
+  overlay: "z-20",
+  modal: "z-50",
+};
 
 /** Canvasの子(slotを持つ部品)に共通で付くクラス。位置そのものはANCHOR_CLASSが持つ。 */
 export const CANVAS_CHILD_BASE_CLASS = "pointer-events-auto absolute";

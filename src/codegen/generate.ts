@@ -18,6 +18,7 @@ import {
   CANVAS_CLASS,
   GAP_CLASS,
   HBOX_BASE_CLASS,
+  LAYER_CLASS,
   PADDING_CLASS,
   RADIUS_CLASS,
   SHADOW_CLASS,
@@ -26,7 +27,7 @@ import {
   VBOX_BASE_CLASS,
 } from "../core/styles";
 import { collectPropsMembers, type PropsMember } from "../core/bindings";
-import type { Align, BindKind, Gap, Margin, Padding, Radius, TextSize, UiDocument, Widget } from "../core/model";
+import type { Align, BindKind, Gap, Layer, Margin, Padding, Radius, TextSize, UiDocument, Widget } from "../core/model";
 
 function isBind(value: unknown): value is { bind: string } {
   return typeof value === "object" && value !== null && typeof (value as { bind?: unknown }).bind === "string";
@@ -90,6 +91,9 @@ function widgetOwnClasses(widget: Widget): WidgetClasses {
   switch (widget.type) {
     case "Canvas":
       staticParts.push(CANVAS_CLASS);
+      // layerはbind不可(I0-viewer-readiness.md)なので常に静的クラスとして足す。
+      // 省略時(undefined)は何も付けない(F1生成物との後方互換。受け入れ基準3)。
+      if (typeof props.layer === "string") staticParts.push(LAYER_CLASS[props.layer as Layer]);
       break;
     case "HBox":
     case "VBox":
@@ -102,6 +106,8 @@ function widgetOwnClasses(widget: Widget): WidgetClasses {
       pushEnumClass<Radius>(staticParts, RADIUS_CLASS, props.radius, "none");
       pushEnumClass<Padding>(staticParts, PADDING_CLASS, props.padding, "none");
       if (props.shadow === true) staticParts.push(SHADOW_CLASS);
+      // textSizeも同じ理由(bind不可・省略時は何も付けない)でlayerと同じ形にする。
+      if (typeof props.textSize === "string") staticParts.push(TEXT_SIZE_CLASS[props.textSize as TextSize]);
       if (isBind(props.surface)) {
         // 分かれ道の各枝の中に区切りの空白を入れる("none"の枝は空文字のまま)。
         // こうしておけば、下のclassNameAttrはstaticTextと単純に連結するだけでよく、
