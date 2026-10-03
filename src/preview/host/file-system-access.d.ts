@@ -22,3 +22,16 @@ interface OpenFilePickerOptions {
 interface Window {
   showOpenFilePicker?(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
 }
+
+// F2-3: 書き込み用の`requestPermission()`。TypeScript標準のlib.dom.d.tsは
+// `createWritable()`(FileSystemWritableFileStream経由の書き込み)までは
+// 定義済みだが、読み書きの許可を明示的に求める`requestPermission()`は
+// 定義していない(showOpenFilePicker同様、まだ標準化されていないAPIのため)。
+// 既存の`FileSystemFileHandle`インターフェースにマージする形で追記する。
+interface FileSystemHandlePermissionDescriptor {
+  mode?: "read" | "readwrite";
+}
+
+interface FileSystemFileHandle {
+  requestPermission?(descriptor?: FileSystemHandlePermissionDescriptor): Promise<PermissionState>;
+}

@@ -18,6 +18,8 @@ export interface OpenedFile {
   displayName: string;
   read(): Promise<string>;
   watch(handler: () => void): () => void;
+  supportsWrite: boolean;
+  write(text: string): Promise<void>;
 }
 
 export interface FileHost {
@@ -25,6 +27,11 @@ export interface FileHost {
   readonly supportsAutoReload: boolean;
 }
 ```
+
+`write()`/`supportsWrite` は F2（[`TaskSheets/F2-editor.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/F2-editor.md)）で足されました。
+エディタ（[編集の章](./preview.md#編集f2-選択hierarchydetails書き戻し)）は
+`supportsWrite` が `false` のとき Details を無効化し、読み取り専用にします
+（File System Access API を持たないブラウザの `<input>` 経由がこれに当たります）。
 
 `supportsAutoReload` は P1 の設計のコード例には無く、実装時に足されたフィールドです。
 Web 版で File System Access API が無いブラウザ（後述）は変更を自動検知できないため、
@@ -34,12 +41,12 @@ Web 版で File System Access API が無いブラウザ（後述）は変更を�
 
 ## 3つの実装
 
-| 実装 | ファイル | 選択 | 読み込み | 変更の検知 |
-|---|---|---|---|---|
-| Windows | [`host/tauri-desktop.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/tauri-desktop.ts) | `@tauri-apps/plugin-dialog` の `open()` | Rust の `read_ui_file`（F1 のまま） | Rust の `notify`（`watch_ui_file`、F1 のまま） |
-| Android | [`host/tauri-android.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/tauri-android.ts) | 同じ `open()`（`content://` URI が返る） | `@tauri-apps/plugin-fs` の `readTextFile()` | `pollForChange()` で1秒ごとに中身の文字列を比較 |
-| Web（FSA あり） | [`host/web.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/web.ts) の `webFileSystemAccessHost` | File System Access API の `showOpenFilePicker()` | `handle.getFile()` | `pollForChange()` で1秒ごとに `size`/`lastModified` を比較 |
-| Web（FSA なし） | 同ファイルの `webInputFallbackHost` | `<input type="file">` | 選んだ時点の `File` を丸ごと保持 | できない（`supportsAutoReload: false`） |
+| 実装 | ファイル | 選択 | 読み込み | 書き込み(F2) | 変更の検知 |
+|---|---|---|---|---|---|
+| Windows | [`host/tauri-desktop.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/tauri-desktop.ts) | `@tauri-apps/plugin-dialog` の `open()` | Rust の `read_ui_file`（F1 のまま） | Rust の `write_ui_file`（新設、`std::fs::write`） | Rust の `notify`（`watch_ui_file`、F1 のまま） |
+| Android | [`host/tauri-android.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/tauri-android.ts) | 同じ `open()`（`content://` URI が返る） | `@tauri-apps/plugin-fs` の `readTextFile()` | 同プラグインの `writeTextFile()`。**実機で未確認**（後述） | `pollForChange()` で1秒ごとに中身の文字列を比較 |
+| Web（FSA あり） | [`host/web.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/web.ts) の `webFileSystemAccessHost` | File System Access API の `showOpenFilePicker()` | `handle.getFile()` | 初回に`requestPermission({mode:"readwrite"})` → `handle.createWritable()` | `pollForChange()` で1秒ごとに `size`/`lastModified` を比較 |
+| Web（FSA なし） | 同ファイルの `webInputFallbackHost` | `<input type="file">` | 選んだ時点の `File` を丸ごと保持 | できない（`supportsWrite: false`） | できない（`supportsAutoReload: false`） |
 
 Windows はファイルパスを直接扱える唯一の実装なので、F1 で作った Rust 側の
 `read_ui_file` / `watch_ui_file` をそのまま使っています。Android と Web（FSA あり）は
@@ -65,6 +72,7 @@ export function pollForChange<T>(
   getSnapshot: () => Promise<T>,
   equals: (a: T, b: T) => boolean,
   onChange: () => void,
+  onError: (error: unknown) => void,
   intervalMs = 1000,
 ): () => void
 ```
@@ -76,6 +84,20 @@ export function pollForChange<T>(
 （中身をまるごと読むより軽い）を比べています。返り値の関数を呼ぶと止まり、
 止めた後は進行中の取得が後から戻ってきても `onChange` は呼ばれません
 （[`host/poll.test.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/poll.test.ts)、受け入れ基準1。フェイクタイマーで確認しています）。
+
+`onError` は F2（[`TaskSheets/F2-editor.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/F2-editor.md)「設計6: P1からの持ち越し」）で足されました。
+以前は下の「既知の弱点」で説明していた問題（`getSnapshot()` の失敗がハンドルされない
+Promiseの拒否になり、1秒ごとに繰り返す）がそのまま残っていましたが、今は
+`checkOnce()` 内で例外を捕まえ、**成功するまで1回だけ** `onError` を呼びます。
+`host/tauri-android.ts`・`host/web.ts` のどちらも、この `onError` には
+`watch()` の呼び出し元から渡された `handler` 自身をそのまま渡しています。つまり
+ポーリングが失敗したときも「再読み込みを試みる」という既存の経路（`handler`）に
+乗せているだけで、新しいエラー表示の仕組みを別に作っていません。再読み込み
+（`PreviewApp.tsx`/`useUiDocument.ts` の `reload()`）自身が `file.read()` の失敗を
+捕まえて「ファイルを読み込めません」の帯を出す仕組みを既に持っているため、
+そこに自然に乗ります（[編集の章](./preview.md#編集f2-選択hierarchydetails書き戻し)参照）。
+成功するまで1回しか通知しない振る舞いは
+[`host/poll.test.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/poll.test.ts) で確認しています（受け入れ基準5）。
 
 ## Firefox / Safari の `<input>` フォールバックと `supportsAutoReload`
 
@@ -158,8 +180,10 @@ Android では読み込みを `tauri-plugin-fs` の `readTextFile()` に任せ�
 `"fs:read-files"` です（point-cloud-viewer の `default.json` と同じ権限）。
 
 ```json
-"permissions": ["core:default", "dialog:allow-open", "fs:read-files"]
+"permissions": ["core:default", "dialog:allow-open", "fs:read-files", "fs:write-files"]
 ```
+
+`fs:write-files` は F2 で足された権限です(`writeTextFile()` を使うため)。
 
 `invoke_handler` は1回しか呼べないため、デスクトップ/モバイルで登録するコマンドの
 一覧も `#[cfg(desktop)]`/`#[cfg(mobile)]` で分かれています。`is_android` コマンドは
@@ -221,30 +245,29 @@ P1 の実装記録（[`TaskSheets/P1-platforms.md`](https://github.com/dOtOb9/ui
   実行時に `generate_context!()` がアイコン欠落で失敗する問題が見つかり、
   `npx tauri icon` でアイコン一式を再生成することで解決しています（見た目は
   point-cloud-viewer の既定プレースホルダーのままです）
+- **(F2) Android の `content://` への書き込みが `plugin-fs` の `writeTextFile()` で
+  実際にできるかは未確認です。** コンパイルは通り、`cargo check --target
+  aarch64-linux-android` も通りますが、Android SDK/NDK がこの PC に無く実機で確かめられ
+  ません。上の表の Android 行に書いたとおりです
+- **(F2) Web（FSA あり）の `requestPermission({mode:"readwrite"})` → `createWritable()`
+  の経路は、実際のブラウザでの書き込み許可ダイアログの表示とその後の書き込みは
+  未確認です。** ヘッドレスブラウザの道具が無いため、ここもコードパスの検査
+  （型・ロジック）までで、実際のブラウザでの確認は所有者の目視（受け入れ基準14）に
+  委ねられています
 
-## 既知の弱点: ポーリングはエラーでも1秒ごとに呼び直す
+## P1での既知の弱点は解消されました: ポーリングのエラー処理(F2)
 
-`pollForChange()` は `getSnapshot()` の失敗を考慮していません。ファイルが削除された、
-Android の権限が失われた、といった理由で `readTextFile()`（Android）や
-`handle.getFile()`（Web）が例外を投げると、`checkOnce()` 内の `await` がそのまま
-失敗し、`catch` が無いため**ハンドルされない Promise の拒否**になります。しかも
-`setInterval` は止まらないので、次の1秒後にまた同じ失敗が起きます。
-
-```ts
-const checkOnce = async () => {
-  const snapshot = await getSnapshot(); // ここで失敗すると catch されない
-  ...
-};
-```
-
-利用者の画面には何も表示されず、エラーが延々と繰り返されるだけになります。
-編集と書き戻し（F2）で `OpenedFile` に書き込み API を足す際、ファイルが無くなった・
-権限が無くなった状態を利用者に見せる仕組みが必要になるはずなので、このタイミングで
-`pollForChange()` にも失敗を一度だけ `onChange` 相当の形で伝える経路を足すのが
-妥当だと考えられます（この本の執筆時点では未着手です）。
+P1の執筆時点では、`pollForChange()` が `getSnapshot()` の失敗を考慮しておらず、
+ファイルが削除された・Android の権限が失われた、といった理由で `readTextFile()`
+（Android）や `handle.getFile()`（Web）が例外を投げると、`checkOnce()` 内の
+`await` がそのまま失敗してハンドルされない Promise の拒否になり、しかも
+`setInterval` は止まらないので1秒ごとに同じ失敗が繰り返されるという弱点を
+抱えていました。F2（設計6）でこれを `onError` パラメータとして修正しています。
+詳しくは上の「変更検知が2種類ある理由と `poll.ts`」を参照してください。
 
 ## まず読むファイル
 
 - [`src/preview/host/FileHost.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/FileHost.ts) — インターフェースそのもの。短いので全部読めます
 - [`src/preview/host/index.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/preview/host/index.ts) — どの実装を使うか決める1箇所。ここから4つの実装ファイルを辿れます
 - [`TaskSheets/P1-platforms.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/P1-platforms.md) — このマイルストーンの設計と実装記録
+- [`TaskSheets/F2-editor.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/F2-editor.md) — 書き込み(`write()`/`supportsWrite`)とポーリングのエラー処理を足したマイルストーン

@@ -39,6 +39,16 @@ pub fn read_ui_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("{path} の読み込みに失敗しました: {e}"))
 }
 
+/// F2-3: 編集のたびに正規化済みテキストを即座に書き込む(保存ボタンは作らない。
+/// F2-editor.md「設計3: 書き戻し」)。この書き込み自体がwatch_ui_fileの監視に
+/// 引っかかって`ui-file-changed`イベントが飛ぶが、それはフロント側
+/// (useUiDocument.ts)が「読み直した中身が今の文書の正規化結果と同じなら
+/// 何もしない」で吸収する(このコマンド自身は普通に書き込むだけでよい)。
+#[tauri::command]
+pub fn write_ui_file(path: String, text: String) -> Result<(), String> {
+    std::fs::write(&path, text).map_err(|e| format!("{path} への書き込みに失敗しました: {e}"))
+}
+
 #[tauri::command]
 pub fn watch_ui_file(app: AppHandle, state: State<WatchState>, path: String) -> Result<(), String> {
     let target = PathBuf::from(&path);

@@ -12,8 +12,11 @@ interface Props {
 export function ValuePanel({ members, values, onChange }: Props) {
   const binds = members.filter((m) => m.kind === "bind");
 
+  // F2: 幅・外枠は、親(PreviewApp.tsx)がDetailsとまとめて置く枠側(w-72)で
+  // 決める(画面構成の図どおり、Detailsと値パネルは右側の1つの枠に縦に並ぶ)。
+  // ここではその内側に積むコンテンツだけを持つ。
   return (
-    <div className="flex h-full w-64 shrink-0 flex-col gap-3 overflow-y-auto bg-slate-900 p-3 text-sm text-slate-100">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto bg-slate-900 p-3 text-sm text-slate-100">
       <h2 className="font-semibold text-slate-300">値パネル</h2>
       {binds.length === 0 && <p className="text-slate-500">bindがありません</p>}
       {binds.map((member) => (
