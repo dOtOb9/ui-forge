@@ -37,9 +37,16 @@ ui-forge が扱うレイアウトのファイル形式。拡張子は `.ui` で�
 ## ファイルホスト（FileHost）
 
 ファイルの選択・読み込み・変更検知を、プラットフォームごとの違いを隠して扱う
-インターフェース。point-cloud-viewer の `DataSource` と同じ考え方です。詳細は
-P1 の合流後に[プラットフォーム](./platforms.md)の章で扱います。
-→ [src/preview](./preview.md#ファイルを開く読む監視する部分について)
+インターフェース。point-cloud-viewer の `DataSource` と同じ考え方です。
+Windows・Android・Web でそれぞれ別の実装（`OpenedFile` を返す）を持ちます。
+→ [プラットフォーム](./platforms.md)
+
+## ポーリング（polling）
+
+ファイルの変更を、OS やブラウザからの通知を待つのではなく、一定間隔で自分から
+取りに行って前回と比べることで検知する方法。ui-forge では Android と Web の
+File System Access API 実装がこれを使います（`content://` URI やブラウザには
+`notify` のようなファイル監視の標準手段が無いため）。→ [プラットフォーム](./platforms.md#変更検知が2種類ある理由と-pollts)
 
 ## JSON Pointer
 

@@ -20,8 +20,8 @@ import が混ざるとそれが崩れます。
 
 同じファイルには、`@tauri-apps/*` の import を `src/preview/host/tauri-*.ts` だけに
 閉じ込める、という2つめの `describe` もあります。これは point-cloud-viewer の
-「規約2」と同じ考え方ですが、`src/preview/host/` の実装自体はこの本では扱いません
-（[プラットフォーム](./platforms.md)の章を参照）。
+「規約2」と同じ考え方です。`src/preview/host/` の実装の詳細は
+[プラットフォーム](./platforms.md)の章で扱います。
 
 ## クラス名は必ずリテラル
 

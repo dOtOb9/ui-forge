@@ -135,3 +135,13 @@ src/preview         render（実行時の解釈）/ 値パネル / イベント�
 3. `node scripts/check-book-links.mjs` を実行し、`OK: ...件のGitHubリンクすべてが
    実在するパスを指しています。` と出ることを確認する。
 4. `mdbook build docs/book` を実行し、警告・エラーが出ないことを確認する。
+
+## 追記（P1 合流後）: 「プラットフォーム」の章を書いた
+
+上記はこのタスクシートが書かれた時点（P1 実装中、`platforms.md` は枠のみ）の記録。
+P1 がマージされた後、別作業で `docs/book/src/platforms.md` の本文を書いた
+（`src/preview/host/` と `src-tauri/src/watch.rs` を対象に、P1-platforms.md と実コードを
+読んで執筆）。`preview.md`・`introduction.md`・`conventions.md`・`adr-index.md`・
+`glossary.md` にあった「P1 合流後に書く」旨の記述も、このときに合わせて更新した。
+「所有者が開いて確かめる手順」1. の「プラットフォームの章が枠だけになっている」は、
+この追記以降は当たらない。

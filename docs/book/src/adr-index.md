@@ -19,7 +19,7 @@ ADR が「なぜ」を記録するのに対し、`TaskSheets/F1`〜のタスク�
 | タスクシート | 状態 | 内容 |
 |---|---|---|
 | [`F1-foundation.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/F1-foundation.md) | 完了 | 形式・生成器・プレビュー（編集なし）。この本の大部分が対象にしている範囲 |
-| [`P1-platforms.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/P1-platforms.md) | 進行中 | Windows / Android / Web 対応。合流後に[プラットフォーム](./platforms.md)の章を書く |
+| [`P1-platforms.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/P1-platforms.md) | 実装完了（所有者の目視確認は未実施） | Windows / Android / Web 対応。詳細は[プラットフォーム](./platforms.md)の章 |
 | [`B1-book.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/B1-book.md) | — | この本自体の作業記録 |
 
 本書の各章は主に ADR とコードを突き合わせて書いていますが、実装時に選んだ理由や

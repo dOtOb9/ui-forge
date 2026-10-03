@@ -56,9 +56,8 @@
 越しに行います。これにより、`PreviewApp.tsx` 自身は今動いているのが Windows・
 Android・Web のどれかを知りません。
 
-**この本では、`FileHost` の実装（`src/preview/host/` の中身）と `src-tauri/src/watch.rs` の
-詳細は扱いません。** プラットフォーム対応（P1）が別の作業として進行中であり、
-P1 が合流したあとに「[プラットフォーム](./platforms.md)」の章で扱う予定です。
+`FileHost` の実装（`src/preview/host/` の中身）と `src-tauri/src/watch.rs` の詳細は、
+[「プラットフォーム」の章](./platforms.md)で扱います。
 
 ## まず読むファイル
 
