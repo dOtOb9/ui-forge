@@ -181,14 +181,20 @@ android ジョブを手本にしていて、構成はほぼ同じです。
 - `npm run tauri android init` → `npm run tauri android build -- --target aarch64 --apk`
   （`--debug` を付けないので Rust 側も最適化ビルドになる）
 - 未署名の APK を `zipalign` → `apksigner` で debug 鍵を使って後付け署名
-- できた APK は GitHub Release には添付せず、`actions/upload-artifact` で
-  ワークフロー実行の成果物（`android-apk`）として残すだけ
+- バージョンタグ（`v*`）を push したときだけ、版入りの名前
+  （`ui-forge_<version>_android-aarch64.apk`）に揃えて GitHub Release に添付する
+- タグの有無にかかわらず、`actions/upload-artifact` でワークフロー実行の成果物
+  （`android-apk`）としても残す（`workflow_dispatch` での手動実行のビルド確認経路）
 
-最後の点は point-cloud-viewer の `release.yml` と違います。point-cloud-viewer は
-タグ push で Release を作りそこに APK を添付しますが、ui-forge にはまだバージョン表示や
-タグとの整合性チェックの仕組みが無く、Release を作る対象のリポジトリ自体も
-まだ存在しないため、ワークフロー成果物への添付に留められています
-（詳しい判断は P1 の実装記録を参照）。`workflow_dispatch`（手動実行）でも走ります。
+D1（[`TaskSheets/D1-delivery.md`](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/D1-delivery.md)）までは、
+ui-forge にはまだバージョン表示やタグとの整合性チェックの仕組みが無く、
+GitHub のリモート自体も存在しなかったため、Release 添付を持たず
+ワークフロー成果物への保存だけに留めていました。D1 で `check-version`
+ジョブ（タグと `package.json`/`tauri.conf.json`/`Cargo.toml` の版の一致を確認）と、
+Windows 向けの `windows` ジョブ（NSIS インストーラをビルドして Release に添付）を
+足し、point-cloud-viewer の `release.yml` と同じ「タグを打てば配布物が揃う」形に
+揃えました。`windows` ジョブ・`android` ジョブとも Release へのアセット添付には
+`permissions: contents: write` が要るため、それぞれのジョブにだけ付けています。
 
 [`.github/workflows/ci.yml`](https://github.com/dOtOb9/ui-forge/blob/main/.github/workflows/ci.yml) は Android ターゲットを含みません。`frontend`
 ジョブ（`ubuntu-latest`、typecheck/lint/test/build）と、`rust` ジョブ
