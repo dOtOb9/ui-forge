@@ -2,18 +2,17 @@
 // 判定」)。PreviewApp.tsxはresolveFileHost()の返り値(FileHostインターフェース)
 // だけを見て、どのプラットフォームかを知らない。
 import type { FileHost } from "./FileHost";
-import { isTauriEnvironment } from "./environment";
+import { hasFileSystemAccessApi, isTauriEnvironment } from "./environment";
 import { tauriDesktopHost } from "./tauri-desktop";
+import { webFileSystemAccessHost, webInputFallbackHost } from "./web";
 
 /**
- * P1-1時点ではTauriの中はデスクトップのみ対応する。AndroidかどうかをRust側へ
- * 問い合わせる分岐はP1-3で足す。Web版の実装(P1-2)もまだ無いため、ブラウザで
- * 実行した場合はここで例外になる(F1までの対象はTauriデスクトップだけだった
- * ので、今はこれで十分)。
+ * P1-2時点ではTauriの中はまだデスクトップのみ対応する。AndroidかどうかをRust側へ
+ * 問い合わせる分岐はP1-3で足す。
  */
 export async function resolveFileHost(): Promise<FileHost> {
   if (isTauriEnvironment()) {
     return tauriDesktopHost;
   }
-  throw new Error("Web版のFileHostはまだ実装されていません(P1-2で追加する予定)");
+  return hasFileSystemAccessApi() ? webFileSystemAccessHost : webInputFallbackHost;
 }
