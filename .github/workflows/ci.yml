@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # P1-platforms.md「P1-4: CIとリリースのワークフロー」。typecheck/lint/test/build
+  # はWindows固有ではないのでubuntu-latestで良い(Rustを一切ビルドしない)。
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+
+  # cargo checkだけwindows-latestで走らせる(受け入れ基準6「cargo
+  # check(src-tauri、Windows)が通る」)。ui-forgeはpoint-cloud-viewerと違い
+  # ルートにCargoワークスペースが無く、src-tauriが単独のクレートなので、
+  # そこへ移動してから実行する。
+  rust:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: cargo check

@@ -1,0 +1,122 @@
+name: Release
+
+# P1-platforms.md「Androidのビルド」。この端末にはAndroid SDK/NDKが無いため、
+# AndroidのAPKはGitHub Actionsでビルドする(point-cloud-viewerと同じ理由)。
+#
+# point-cloud-viewerのrelease.ymlと違い、ui-forgeにはまだWindows用の
+# インストーラをGitHub Releaseに添付する仕組みが無い(タスクシートの範囲外。
+# このマイルストーンが対象にしているのは「プレビューアプリが各端末で単独で
+# 動くこと」で、配布の仕組みそのものはまだ要らない)。そのためタグ・Releaseは
+# 作らず、ビルドしたAPKをワークフロー実行の成果物(actions/upload-artifact)
+# として残すだけにしてある。Releaseへの添付が要る段になったら、
+# point-cloud-viewerのandroidジョブ(softprops/action-gh-release等)を
+# 参考に足す。
+#
+# workflow_dispatch: タグを打たずに手動で試すための経路(point-cloud-viewerの
+# release.ymlと同じ理由)。ui-forgeにはまだGitHubのリモートが無いため、
+# 所有者がリポジトリを作ってpushした後でなければどちらのトリガーも動かない
+# (「ui-forgeにはまだGitHubのリモートが無い。リポジトリの作成とプッシュは
+# 所有者が行う。実装者はワークフローのファイルを書くところまで」)。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # P1-platforms.mdの指定どおりaarch64-linux-androidのみ(所有者の実機に
+      # 絞る、point-cloud-viewerと同じ判断)。
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      # "tools"パッケージはGoogleのSDKリポジトリから既に削除されているため、
+      # 既定値("tools platform-tools")のままだとsdkmanagerが失敗する
+      # (point-cloud-viewerのrelease.ymlで実際に踏んだ問題。同じ回避を行う)。
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26d
+          link-to-sdk: true
+      - name: NDK_HOME を設定する
+        run: echo "NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> "$GITHUB_ENV"
+      # debug署名鍵(~/.android/debug.keystore)。キャッシュしないとCIランナーの
+      # たびに鍵が変わり、実機への上書きインストールが拒否される
+      # (point-cloud-viewerのM3-3の記録と同じ理由)。秘密鍵は生成しない方針
+      # (タスクシート「範囲外」参照)だが、debug鍵はAndroid標準の固定パスワード
+      # のみで保護される低リスクな鍵であり対象外と判断する(point-cloud-viewerと
+      # 同じ判断)。
+      - name: debug.keystore をキャッシュする
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+      - name: debug.keystore が無ければ生成する
+        shell: bash
+        run: |
+          if [ ! -f ~/.android/debug.keystore ]; then
+            mkdir -p ~/.android
+            keytool -genkeypair -v -keystore ~/.android/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+      - run: npm ci
+      - name: tauri android init
+        run: npm run tauri android init
+      # --debugを付けない(Rust側も最適化ビルドになる。point-cloud-viewerの
+      # release.ymlが実測した493MB→6.8MBの差と同じ理由)。署名は次のstepで
+      # debug鍵を使って後付けする(Gradle側は未署名のまま出すため)。
+      - name: tauri android build (release最適化、arm64のみ)
+        run: npm run tauri android build -- --target aarch64 --apk
+      - name: APKにdebug鍵で署名する(zipalign→apksigner)
+        shell: bash
+        run: |
+          set -euo pipefail
+          UNSIGNED=$(find src-tauri/gen/android/app/build/outputs/apk -name '*-unsigned.apk')
+          OUT_DIR=$(dirname "$UNSIGNED")
+          BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -V | tail -1)
+          if [ -z "$BUILD_TOOLS_DIR" ]; then
+            echo "build-toolsがランナーに見つからないため、sdkmanagerで取得します"
+            SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 2 -name sdkmanager | head -1)
+            yes | "$SDKMANAGER" "build-tools;35.0.0"
+            BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/35.0.0"
+          fi
+          echo "using build-tools: $BUILD_TOOLS_DIR"
+          ALIGNED="$OUT_DIR/app-aligned.apk"
+          SIGNED="$OUT_DIR/app-universal-release-debug-signed.apk"
+          "$BUILD_TOOLS_DIR/zipalign" -f -p 4 "$UNSIGNED" "$ALIGNED"
+          "$BUILD_TOOLS_DIR/apksigner" sign \
+            --ks ~/.android/debug.keystore --ks-pass pass:android \
+            --key-pass pass:android --ks-key-alias androiddebugkey \
+            --out "$SIGNED" "$ALIGNED"
+          rm -f "$UNSIGNED" "$ALIGNED"
+      - name: 生成されたAPKを確認する
+        shell: bash
+        run: |
+          echo "--- src-tauri/gen/android/app/build/outputs/apk 以下 ---"
+          find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' -exec ls -lh {} \; 2>&1 || echo "(APKが見つかりません)"
+      - name: APKをワークフロー成果物として保存する
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          retention-days: 14
+          if-no-files-found: error
