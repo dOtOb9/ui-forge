@@ -11,10 +11,12 @@ import { ALL_WIDGET_TYPES } from "./model";
 // この一覧を更新し忘れると、該当の型がexpectedに無くfieldsFor側だけ結果を返す
 // ことになり、このテストの`for`ループが未定義アクセスで落ちて気づける。
 const EXPECTED_PROP_NAMES: Record<string, string[]> = {
-  Canvas: [],
+  // layer(Canvas)とtextSize(Panel)はI-0で足された語彙。vocabulary.ts側は
+  // 何も変えずにスキーマから拾えている(F2-editor.md 設計2の検証)。
+  Canvas: ["layer"],
   HBox: ["align", "gap", "padding"],
   VBox: ["align", "gap", "padding"],
-  Panel: ["padding", "radius", "shadow", "surface"],
+  Panel: ["padding", "radius", "shadow", "surface", "textSize"],
   Text: ["size", "text"],
   Button: ["active", "label", "onClick"],
 };
