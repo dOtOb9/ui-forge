@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "type": "module",
+  "bin": {
+    "ui-forge": "bin/ui-forge.mjs"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -20,7 +23,8 @@
     "@tauri-apps/plugin-fs": "^2",
     "ajv": "^8.17.1",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -35,7 +39,6 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.12.0",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.19.2",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.0.16",

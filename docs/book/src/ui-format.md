@@ -70,12 +70,16 @@ bind 不可のプロパティ（`gap` / `padding` / `align` / `radius` / `shadow
 
 | type | コンテナ | props |
 |---|---|---|
-| `Canvas` | ○ | なし。子は `slot.anchor` で配置される |
+| `Canvas` | ○ | `layer`。子は `slot.anchor` で配置される |
 | `HBox` | ○ | `gap`, `padding`, `align` |
 | `VBox` | ○ | `gap`, `padding`, `align` |
-| `Panel` | ○（子は1つまで） | `surface`, `radius`, `padding`, `shadow` |
+| `Panel` | ○（子は1つまで） | `surface`, `radius`, `padding`, `shadow`, `textSize` |
 | `Text` | × | `text`（bind 可）, `size` |
 | `Button` | × | `label`（bind 可）, `active`（bind 可）, `onClick`（event） |
+
+`layer` / `textSize` は point-cloud-viewer への組み込み準備
+（[I0-viewer-readiness](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/I0-viewer-readiness.md)）で足した語彙です。どちらも bind 不可で、省略時は何も
+クラスを付けません（既存の文書との後方互換）。
 
 コンテナかどうかの一覧は `model.ts` の `CONTAINER_TYPES` 配列（`Canvas` / `HBox` /
 `VBox` / `Panel`）1箇所だけに置かれています。`validate.ts` の「コンテナでない
@@ -90,6 +94,8 @@ bind 不可のプロパティ（`gap` / `padding` / `align` / `radius` / `shadow
 | `surface` | `glass` `opaque` `none`（bind 可） |
 | `radius` | `none` `md` `lg` `full` |
 | `size` | `sm` `md` `lg` |
+| `textSize`（`Panel`） | `sm` `md` `lg`（`Text.size` と同じ列挙・同じクラス対応表） |
+| `layer`（`Canvas`） | `base` `overlay` `modal` → `z-10` / `z-20` / `z-50` |
 | `slot.anchor` | `top-left` `top-center` `top-right` `center-left` `center` `center-right` `bottom-left` `bottom-center` `bottom-right` |
 | `slot.margin` | `none` `sm` `md` `lg` |
 

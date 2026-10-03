@@ -10,7 +10,7 @@
 // 「bindならどちらを選ぶかの三項演算子のソースコード」を作るのに対し、
 // ここは「実際の値を見てどちらかを選んだ結果の文字列」を作るという一点だけ。
 import { cloneElement, type ReactElement } from "react";
-import type { Align, Gap, Padding, Radius, Surface, TextSize, UiDocument, Widget } from "../core/model";
+import type { Align, Gap, Layer, Padding, Radius, Surface, TextSize, UiDocument, Widget } from "../core/model";
 import {
   ALIGN_CLASS,
   ANCHOR_CLASS,
@@ -21,6 +21,7 @@ import {
   CANVAS_CLASS,
   GAP_CLASS,
   HBOX_BASE_CLASS,
+  LAYER_CLASS,
   PADDING_CLASS,
   RADIUS_CLASS,
   SHADOW_CLASS,
@@ -78,6 +79,9 @@ function widgetClassName(widget: Widget, values: BindValues): string {
   switch (widget.type) {
     case "Canvas":
       parts.push(CANVAS_CLASS);
+      // generate.tsのwidgetOwnClasses()と同じ理由・同じ形(layer/textSizeはbind不可
+      // なので、省略時に何も付けないことだけ気を付ければ良い)。
+      if (typeof props.layer === "string") parts.push(LAYER_CLASS[props.layer as Layer]);
       break;
     case "HBox":
     case "VBox":
@@ -90,6 +94,7 @@ function widgetClassName(widget: Widget, values: BindValues): string {
       pushEnumClass<Radius>(parts, RADIUS_CLASS, props.radius, "none");
       pushEnumClass<Padding>(parts, PADDING_CLASS, props.padding, "none");
       if (props.shadow === true) parts.push(SHADOW_CLASS);
+      if (typeof props.textSize === "string") parts.push(TEXT_SIZE_CLASS[props.textSize as TextSize]);
       const surfaceClass = SURFACE_CLASS[resolveSurface(props.surface, values)];
       if (surfaceClass.length > 0) parts.push(surfaceClass);
       break;

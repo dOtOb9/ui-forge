@@ -50,6 +50,7 @@
     },
     "radius": { "enum": ["none", "md", "lg", "full"] },
     "textSize": { "enum": ["sm", "md", "lg"] },
+    "layer": { "enum": ["base", "overlay", "modal"] },
     "anchor": {
       "enum": [
         "top-left",
@@ -100,7 +101,13 @@
           "if": { "properties": { "type": { "const": "Canvas" } } },
           "then": {
             "properties": {
-              "props": { "type": "object", "additionalProperties": false }
+              "props": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "layer": { "$ref": "#/$defs/layer" }
+                }
+              }
             }
           }
         },
@@ -131,7 +138,8 @@
                   "surface": { "$ref": "#/$defs/surfaceOrBind" },
                   "radius": { "$ref": "#/$defs/radius" },
                   "padding": { "$ref": "#/$defs/gapOrPadding" },
-                  "shadow": { "type": "boolean" }
+                  "shadow": { "type": "boolean" },
+                  "textSize": { "$ref": "#/$defs/textSize" }
                 }
               }
             }

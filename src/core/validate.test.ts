@@ -162,6 +162,27 @@ describe("validate", () => {
     );
   });
 
+  // I0-viewer-readiness.md 受け入れ基準4: 不正なlayer/textSizeが検証エラーになり、pathが正しい。
+  it("不正なlayer", () => {
+    const doc = {
+      version: 1,
+      component: "Dock",
+      root: { id: "root", type: "Canvas", props: { layer: "top" } },
+    };
+    const errors = validate(doc);
+    expect(errors).toContainEqual(expect.objectContaining({ path: "/root/props/layer" }));
+  });
+
+  it("不正なtextSize", () => {
+    const doc = {
+      version: 1,
+      component: "Dock",
+      root: { id: "root", type: "Panel", props: { textSize: "huge" } },
+    };
+    const errors = validate(doc);
+    expect(errors).toContainEqual(expect.objectContaining({ path: "/root/props/textSize" }));
+  });
+
   it('onで始まらないevent名', () => {
     const doc = {
       version: 1,

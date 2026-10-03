@@ -11,6 +11,10 @@ export type Align = "start" | "center" | "end" | "stretch";
 export type Surface = "glass" | "opaque" | "none";
 export type Radius = "none" | "md" | "lg" | "full";
 export type TextSize = "sm" | "md" | "lg";
+/** I-0(point-cloud-viewer組み込み準備): 3Dビューや他のパネルとの重なり順。
+ * 数値のz-indexをAIに選ばせず、意味のある名前の列挙にする理由はADR-0005
+ * (point-cloud-viewer側)と、I0-viewer-readiness.mdの表に書いてある。 */
+export type Layer = "base" | "overlay" | "modal";
 export type Anchor =
   | "top-left"
   | "top-center"
@@ -42,10 +46,11 @@ export interface Slot {
   margin?: Margin;
 }
 
-/** 部品ごとのprops。キーは部品表(F1-foundation.md)のとおり。 */
+/** 部品ごとのprops。キーは部品表(F1-foundation.md、layer/textSizeはI0-viewer-readiness.md)
+ * のとおり。 */
 export interface CanvasProps {
-  // Canvasにpropsは無い。空オブジェクトのみ許される。
-  [key: string]: never;
+  /** I-0: 3Dビューや左右パネルとの重なり順。省略時は何も付けない(後方互換)。 */
+  layer?: Layer;
 }
 
 export interface BoxProps {
@@ -59,6 +64,9 @@ export interface PanelProps {
   radius?: Radius;
   padding?: Padding;
   shadow?: boolean;
+  /** I-0: パネル内の文字の既定の大きさ。Text.sizeと同じ列挙・同じクラス対応表。
+   * 省略時は何も付けない(後方互換)。 */
+  textSize?: TextSize;
 }
 
 export interface TextProps {
