@@ -76,6 +76,15 @@ export type WidgetProps = CanvasProps | BoxProps | PanelProps | TextProps | Butt
 
 export type WidgetType = "Canvas" | "HBox" | "VBox" | "Panel" | "Text" | "Button";
 
+/** WidgetTypeの全値。型(コンパイル時)と実行時の両方で一覧が要る場所
+ * (src/core/vocabulary.test.ts、受け入れ基準3: 型の一覧をWidgetTypeと照合する)
+ * のために置く。WidgetTypeに型が増えたらここにも追記する必要があるが、
+ * 増やし忘れてもコンパイルエラーにはならない(TSの文字列リテラル型union自体に
+ * 「全部列挙したか」を機械的に確かめる手段が無いため)。vocabulary.test.ts側で
+ * この配列を使ってfieldsFor()を全型についてテストする形で、増やし忘れに
+ * 気づける範囲をできるだけ広げている。 */
+export const ALL_WIDGET_TYPES: readonly WidgetType[] = ["Canvas", "HBox", "VBox", "Panel", "Text", "Button"];
+
 export interface Widget {
   id: string;
   type: WidgetType;
