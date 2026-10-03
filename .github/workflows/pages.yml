@@ -1,0 +1,93 @@
+name: Pages
+
+# Web版(dist/)と設計読解用のmdBook(docs/book/)をGitHub Pagesへ公開する。
+# 既存のci.ymlとはあえて別ファイルにしてある(point-cloud-viewerのpages.ymlと
+# 同じ理由。Rust/Androidを前提にするrelease.ymlの前提をこのワークフローに
+# 混ぜて壊したくない)。ui-forgeにはwasmのビルドが無いので、point-cloud-viewerの
+# pages.ymlにあるRust/wasm-bindgen関連のstepは一切持ち込まない
+# (Node/Viteとmdbookだけで完結する)。
+#
+# アプリ(dist/、`/ui-forge/`)と本(docs/book/book/、`/ui-forge/book/`)は同じ
+# Pagesの成果物にまとめて公開する。本をdist/book/へコピーしてから
+# upload-pages-artifactする(本の追加に失敗してもこのジョブ自体が落ちるため、
+# 本だけが欠けたまま公開されることはない)。
+#
+# 所有者がやること(1回だけ): GitHubのリポジトリ設定 → Pages →
+# "Build and deployment"のSourceを"GitHub Actions"にする。D1の実装記録に
+# 書いたとおり、これはAPIで既に済ませてある。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+# 同時に複数のPagesデプロイが走らないようにする(Pagesの標準的な作法。
+# point-cloud-viewerのpages.ymlと同じ)。
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+      # GitHub PagesはリポジトリのサブパスURL(https://dotob9.github.io/ui-forge/)
+      # で配信される。vite.config.tsの`isGithubPagesBuild`
+      # (`GITHUB_PAGES_BUILD=true`)でそのときだけ`base`をサブパスに切り替える
+      # (point-cloud-viewerのvite.config.tsと同じ方式。Tauriのビルドは
+      # この環境変数を立てないので既定の"/"のまま影響しない)。
+      - name: 静的ビルド(vite build、Pagesのサブパス向け)
+        run: npm run build
+        env:
+          GITHUB_PAGES_BUILD: "true"
+
+      # 設計読解用のmdBook(docs/book/)。標準のmdBookだけでビルドできる
+      # (拡張は使っていない)。`mdbook build`の既定出力先は本のルート直下の
+      # `book/`(= docs/book/book/)。
+      - name: mdBookの導入
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: "latest"
+      # 本文中のGitHubリンクが実在するパスを指しているかの検査
+      # (scripts/check-book-links.mjs、B1-foundation.md受け入れ基準3)。
+      # 壊れたリンクのまま公開しない。
+      - name: 本のリンクを検査する
+        run: node scripts/check-book-links.mjs
+      - name: 本をビルドする
+        run: mdbook build docs/book
+      - name: 本をアプリの成果物の book/ 以下に配置する
+        run: |
+          mkdir -p dist/book
+          cp -r docs/book/book/. dist/book/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

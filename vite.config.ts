@@ -8,8 +8,16 @@ import process from "node:process";
 
 const host = process.env.TAURI_DEV_HOST;
 
+// GitHub Pagesはリポジトリのサブパス(https://dotob9.github.io/ui-forge/)で
+// 配信されるため、そのときだけ`base`をサブパスに変える。Tauri版のビルド
+// (`npm run tauri build`。frontendDistをwebviewが配信する)は既定の"/"のままでよい
+// (point-cloud-viewer(vite.config.ts)の`isGithubPagesBuild`と同じ方式)。
+// `.github/workflows/pages.yml`がビルド時にこの環境変数を立てる。
+const isGithubPagesBuild = process.env.GITHUB_PAGES_BUILD === "true";
+
 // https://vite.dev/config/
 export default defineConfig(() => ({
+  base: isGithubPagesBuild ? "/ui-forge/" : "/",
   plugins: [react(), tailwindcss()],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
