@@ -6,3 +6,5 @@ TSX を生成するツール。point-cloud-viewer の UI シェルで使う。
 設計の経緯は [TaskSheets/ADR-0001-design.md](./TaskSheets/ADR-0001-design.md)、
 現在のマイルストーンの作業内容は [TaskSheets/F1-foundation.md](./TaskSheets/F1-foundation.md)
 を参照。
+
+コードを読む前に読む本（設計読解ガイド）は `mdbook serve docs/book` で開けます。

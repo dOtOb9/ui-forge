@@ -18,6 +18,9 @@ npm-debug.log*
 src-tauri/target/
 src-tauri/gen/
 
+# mdBook（ビルド出力）
+docs/book/book/
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json
