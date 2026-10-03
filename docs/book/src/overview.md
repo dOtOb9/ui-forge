@@ -4,7 +4,7 @@
 
 **UI のレイアウトをテキストファイル（`.ui`、中身は JSON）に書き、そこから React の
 TSX を生成する。** 同じ `.ui` を実行時に解釈して描画する Tauri アプリ（プレビュー）も
-持つ。[Unreal Engine の UMG](./glossary.md#umg) の Designer に相当するものを、
+持つ。[Unreal Engine の UMG](./glossary.md#umgunreal-motion-graphics) の Designer に相当するものを、
 バイナリではなくテキストファイルで作ろうとしている、と捉えると分かりやすいです。
 
 この構成を選んだ理由は [ADR-0001](https://github.com/dOtOb9/ui-forge/blob/main/TaskSheets/ADR-0001-design.md) にあります。要点だけ書くと、AI に UI を書かせると人間が

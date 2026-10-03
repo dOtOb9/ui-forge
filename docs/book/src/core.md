@@ -1,7 +1,7 @@
 # src/core
 
 `src/core/` は純粋関数と型だけの層です。**React も Tauri も import しません**
-（[規約](./conventions.md#依存の向き-src-core-は-reactTauri-を知らない)）。
+（[規約](./conventions.md#依存の向き-srccore-は-reacttauri-を知らない)）。
 `src/codegen/`（コード生成）と `src/preview/`（実行時解釈）の両方がここに依存する、
 一方向の関係です。
 
