@@ -103,8 +103,13 @@ function widgetOwnClasses(widget: Widget): WidgetClasses {
       pushEnumClass<Padding>(staticParts, PADDING_CLASS, props.padding, "none");
       if (props.shadow === true) staticParts.push(SHADOW_CLASS);
       if (isBind(props.surface)) {
+        // 分かれ道の各枝の中に区切りの空白を入れる("none"の枝は空文字のまま)。
+        // こうしておけば、下のclassNameAttrはstaticTextと単純に連結するだけでよく、
+        // surfaceが"none"に解決されたときに余分な末尾スペースが残らない
+        // (render.tsxの対応する分岐と、同じ入力に対して同じHTMLになる必要がある。
+        // 受け入れ基準5)。
         const p = `props.${props.surface.bind}`;
-        dynamicExpr = `${p} === "glass" ? "${SURFACE_CLASS.glass}" : ${p} === "opaque" ? "${SURFACE_CLASS.opaque}" : "${SURFACE_CLASS.none}"`;
+        dynamicExpr = `${p} === "glass" ? " ${SURFACE_CLASS.glass}" : ${p} === "opaque" ? " ${SURFACE_CLASS.opaque}" : ""`;
       } else {
         const value = typeof props.surface === "string" ? props.surface : "none";
         if (SURFACE_CLASS[value as keyof typeof SURFACE_CLASS].length > 0) {
@@ -119,8 +124,10 @@ function widgetOwnClasses(widget: Widget): WidgetClasses {
     case "Button": {
       staticParts.push(BUTTON_BASE_CLASS);
       if (isBind(props.active)) {
+        // 同じ理由で、区切りの空白は分かれ道の枝の中に入れる(Buttonの場合は
+        // どちらの枝も空文字にはならないが、Panel/surfaceと統一した形にしておく)。
         const p = `props.${props.active.bind}`;
-        dynamicExpr = `${p} ? "${BUTTON_ACTIVE_CLASS}" : "${BUTTON_INACTIVE_CLASS}"`;
+        dynamicExpr = `${p} ? " ${BUTTON_ACTIVE_CLASS}" : " ${BUTTON_INACTIVE_CLASS}"`;
       } else {
         staticParts.push(props.active === true ? BUTTON_ACTIVE_CLASS : BUTTON_INACTIVE_CLASS);
       }
@@ -143,8 +150,9 @@ function classNameAttr(widget: Widget): string {
   if (dynamicExpr === undefined) {
     return `className="${staticText}"`;
   }
-  const sep = staticText.length > 0 ? " " : "";
-  return `className={\`${staticText}${sep}\${${dynamicExpr}}\`}`;
+  // 区切りの空白はdynamicExprの各枝の中に既に入っている(widgetOwnClasses参照)ので
+  // ここでは単純に連結するだけでよい。
+  return `className={\`${staticText}\${${dynamicExpr}}\`}`;
 }
 
 function textContent(value: unknown): string {
