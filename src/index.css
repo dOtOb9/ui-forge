@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* プレビュー中の生成コンポーネントはpoint-cloud-viewer(src/index.css)と同じ
+   `[data-theme="dark"]`属性でdark:を切り替える(ガラス面の明暗をプレビューの
+   ライト/ダーク切り替えボタンと対応させるため)。 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* F1-4: プレビュー画面はウィンドウ全面を使う(値パネル/イベントログと並べるため)。
    html/body/#rootがビューポート全体の高さを持たないと、flexレイアウトが
    縮んでしまう。point-cloud-viewer(src/index.css)と同じ対処。 */
@@ -7,4 +12,21 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* F1-foundation.md「中央: プレビュー領域。背景はガラスが確認できる柄(暗い
+   グラデーション+細かい点の模様など)」。ガラス面(backdrop-blur+半透明tint)が
+   ちゃんとぼかし・透けて見えるかを、模様の上で確認できるようにするための背景。
+   Tailwindのユーティリティだけでこの柄(ドットパターン)を表すのは読みにくく
+   なるので、見た目の値そのものである以上、ここに生のCSSとして書く
+   (ADR-0001の「語彙を限定する」は`.ui`文書の側の話であり、ui-forgeという
+   ツール自身の画面の作りはその対象外)。 */
+.preview-backdrop {
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.18) 1px, transparent 0),
+    linear-gradient(135deg, #0f172a, #1e3a8a, #312e81);
+  background-size:
+    16px 16px,
+    100% 100%;
 }

@@ -1,10 +1,11 @@
+import { PreviewApp } from "./preview/PreviewApp";
+
 /**
- * F1-1: 雛形の時点では空のウィンドウを開くことだけが目的(F1-foundation.md)。
- * プレビュー画面本体(値パネル・イベントログ・ファイル監視)はF1-4で
- * src/preview/以下に作り、ここから使う。
+ * F1-4: 画面本体はsrc/preview/PreviewApp.tsxに全部入れてある。ここは
+ * それを呼ぶだけ(point-cloud-viewer自身のApp.tsx/AppShell.tsxの分け方と同じ)。
  */
 function App() {
-  return <div />;
+  return <PreviewApp />;
 }
 
 export default App;
