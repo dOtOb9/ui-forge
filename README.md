@@ -5,16 +5,31 @@ TSX を生成するツール。point-cloud-viewer の UI シェルで使う。
 
 設計の経緯は [TaskSheets/ADR-0001-design.md](./TaskSheets/ADR-0001-design.md)、
 これまでのマイルストーンの作業内容は [TaskSheets/F1-foundation.md](./TaskSheets/F1-foundation.md)・
-[TaskSheets/P1-platforms.md](./TaskSheets/P1-platforms.md) を参照。
+[TaskSheets/P1-platforms.md](./TaskSheets/P1-platforms.md)・
+[TaskSheets/F2-editor.md](./TaskSheets/F2-editor.md) を参照。
 
 コードを読む前に読む本（設計読解ガイド）は `mdbook serve docs/book` で開けます。
 
 ## プレビューアプリの起動（Windows / Web / Android）
 
-プレビューアプリは `.ui` ファイルを開いて見た目を確かめるためのツールで、
-Windows・Web・Android のそれぞれで単独で動く（P1-platforms.md「設計」）。
-どの端末でも `.ui` を開くと、外部のエディタで保存した変更が自動で（Web の
-File System Access API に対応していないブラウザを除く）反映される。
+プレビューアプリは `.ui` ファイルを開いて見た目を確かめ、**その場で触って
+編集できる**ツールで、Windows・Web・Android のそれぞれで単独で動く
+（P1-platforms.md「設計」）。どの端末でも `.ui` を開くと、外部のエディタで
+保存した変更が自動で（Web の File System Access API に対応していないブラウザを
+除く）反映される。
+
+### 編集（F2）
+
+上部のツールバーで「編集」「操作」モードを切り替える（既定は編集）。編集モードで
+プレビュー中の部品をクリックすると選択され、左の Hierarchy・右の Details と
+選択が同期する。Hierarchy で部品を足す・消す・並べ替え、Details でプロパティを
+変えると、その場で正規化して `.ui` ファイルへ書き戻される（保存ボタンは無い）。
+`Ctrl+Z` / `Ctrl+Shift+Z`（または `Ctrl+Y`）と、ツールバーの ↶↷ で Undo/Redo
+できる。外部（AI や VS Code）での変更も Undo で取り消せる。
+
+Web で File System Access API に対応していないブラウザ（Firefox など）と、
+ファイルへの書き込みに失敗する環境では、エディタは読み取り専用になる
+（Details が無効化され、理由が表示される）。
 
 ### Windows
 
@@ -50,3 +65,7 @@ push した上で、Actions タブから `Release` ワークフローを手動�
 
 ファイルの変更検知は `content://` URI が `notify` で監視できないため、1 秒ごとの
 ポーリングで行う（最大 2 秒程度の遅延がある）。
+
+**`content://` への書き込み（F2 の編集機能）が実機で実際にできるかは未確認。**
+Android SDK / NDK がこの端末に無く、コンパイルが通ることまでしか確かめられて
+いない。

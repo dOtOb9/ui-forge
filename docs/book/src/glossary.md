@@ -66,6 +66,27 @@ JSON 文書内の1箇所を指す記法（`/root/children/0/props/gap` のよう
 半透明でぼかしの入ったガラス面で、point-cloud-viewer の UI シェルと同じ見た目です。
 → [src/core](./core.md#stylests-列挙値--tailwind-クラスの対応表)
 
+## Hierarchy / Details
+
+F2で足されたエディタの2つのパネル。Hierarchy は文書の木構造を一覧し、部品を
+足す・消す・並べ替える。Details は選んだ部品の id・type・slot・props を編集する。
+どちらも実際の変更は `src/core/edit.ts` の純粋関数を呼ぶだけで、Details の入力欄は
+`src/core/vocabulary.ts` がスキーマから導く。→ [src/preview](./preview.md#編集f2-選択hierarchydetails書き戻し)
+
+## 書き戻し（write-back）
+
+エディタでの編集を、保存ボタンを介さずに**即座に**正規化してファイルへ書く
+F2の仕組み。自分の書き込みが監視で返ってきても、読み直した中身が今の文書の
+正規化結果と同じなら何もしない(「同じものを3者が扱う」という ADR-0001 の
+前提を壊さないため)。→ [src/preview](./preview.md#書き戻しとundoredo-editoruseuidocumentts)
+
+## Undo / Redo 履歴
+
+F2で足された、正規化済み**テキスト**のスタック(`src/preview/history.ts`)。
+文書のオブジェクトではなく文字列で持つのは、比較が簡単でそのままファイルに
+書き戻せるため。外部(AI や VS Code)からの変更も、内容が変われば1件積まれるので、
+Undo で取り消せる。→ [src/preview](./preview.md#書き戻しとundoredo-editoruseuidocumentts)
+
 ## ADR（Architecture Decision Record）
 
 設計判断とその理由を記録する文書形式。このリポジトリでは `TaskSheets/ADR-0001` が
