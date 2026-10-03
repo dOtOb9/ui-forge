@@ -7,6 +7,8 @@ TSX を生成するツール。point-cloud-viewer の UI シェルで使う。
 これまでのマイルストーンの作業内容は [TaskSheets/F1-foundation.md](./TaskSheets/F1-foundation.md)・
 [TaskSheets/P1-platforms.md](./TaskSheets/P1-platforms.md) を参照。
 
+コードを読む前に読む本（設計読解ガイド）は `mdbook serve docs/book` で開けます。
+
 ## プレビューアプリの起動（Windows / Web / Android）
 
 プレビューアプリは `.ui` ファイルを開いて見た目を確かめるためのツールで、
