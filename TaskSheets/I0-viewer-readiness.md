@@ -1,6 +1,6 @@
 # I-0: point-cloud-viewer に組み込むための準備
 
-- 状態: 未着手
+- 状態: 完了(自動テスト・コマンドでの確認は済み)
 - 前提: [ADR-0001](./ADR-0001-design.md)、[F1](./F1-foundation.md)
 
 ## 目的
@@ -82,3 +82,119 @@ point-cloud-viewer は ui-forge を **git の依存**として入れ、`npx ui-f
 ## 実装記録
 
 （実装者が記入する: やったこと / 理由と退けた案 / 触ったファイル / 所有者が確かめる手順）
+
+### 1. 語彙: Canvas.layer / Panel.textSize
+
+**やったこと**: `model.ts`に`Layer`型(`"base" | "overlay" | "modal"`)を足し、
+`CanvasProps.layer`・`PanelProps.textSize`を追加。`schema/ui.schema.json`の
+Canvas/Panelの`props`に対応する`$ref`を足した。`styles.ts`に`LAYER_CLASS`
+(`base→z-10`, `overlay→z-20`, `modal→z-50`)を足した(`textSize`は既存の
+`TEXT_SIZE_CLASS`をそのまま再利用。新しい対応表は増やしていない)。
+`generate.ts`の`widgetOwnClasses()`と`render.tsx`の`widgetClassName()`の
+両方に、同じ場所・同じ順番(Canvasはベースクラスの直後、Panelはshadowの直後・
+surfaceの直前)で「`layer`/`textSize`が文字列なら対応するクラスを足す。
+省略(undefined)なら何もしない」処理を足した。`examples/Dock.ui`の
+root(Canvas)に`"layer": "overlay"`、dock(Panel)に`"textSize": "sm"`を足し、
+`npx tsx src/codegen/cli.ts gen`で`examples/generated/Dock.tsx`を作り直した。
+`docs/book/src/ui-format.md`(部品表・列挙値表)と`core.md`(`CanvasProps`の
+説明。F1時点の「キーを持てないオブジェクト型」という説明が古くなったので
+書き換えた)も直した。
+
+**理由・退けた案**:
+- `layer`/`textSize`を`pushEnumClass()`(既存の共通ヘルパー)に乗せる案は
+  退けた。`pushEnumClass`は「値が無ければfallbackのキーを使う」という形で、
+  `fallback`のクラス文字列が空であることを前提にしている(`gap`の`"none"`など)。
+  `Layer`にはそのような「クラス無し」のメンバーが無く(`base`/`overlay`/`modal`
+  いずれもz-indexを持つ)、fallbackを無理に作ると「省略時は何も付けない」という
+  要求(後方互換)を表現できない。そのため`typeof props.layer === "string"`での
+  素朴な分岐にした(`textSize`も同じ理由で揃えた)。
+- `layer`の値を`z-10`/`z-20`/`z-50`という数値そのもののキーにする案は
+  タスクシート自身が明確に却下している(ADR-0005が重なりを意味で決めているため)
+  ので採らなかった。
+- `generate.test.ts`に、受け入れ基準2用の直書きテストを追加した(本体
+  `Dock.tsx`の実クラス文字列をテスト内にリテラルで持つ)。`renderToStaticMarkup`
+  した生成物のHTMLから`data-ui-id`ごとの`class`属性を正規表現で抜き、`fixed`/
+  `flex`/`gap-1`/`z-20`を除いた本体のクラスが`dock`要素に全て含まれること、
+  `z-20`が`root`、`flex`/`gap-1`が`dock_buttons`にあることを確認する形にした。
+  このファイルは`.test.ts`(`.tsx`ではない)なのでJSXは使わず`react`の
+  `createElement`で呼び出した。
+- 受け入れ基準3(省略時に不変)は、`examples/Dock.ui`自体に`layer`/`textSize`を
+  足してしまった以上、生成物同士の比較では検証できない。そこで
+  `generate.test.ts`に「`layer`/`textSize`を一切書いていない旧構造の文書」を
+  インラインで用意し、`generate()`の出力が、この変更より前に実際に
+  コミットされていた`examples/generated/Dock.tsx`の内容(文字列として
+  このテストに直書き)と1文字単位で一致することを確認するテストを足した。
+- 受け入れ基準4(不正値の検証エラー)は、`layer`/`textSize`がどちらもスキーマの
+  `enum`だけで表現できる(複数Widgetにまたがる意味検証は不要)ため、
+  `validate.ts`自体の変更は無し。`schema/ui.schema.json`に`$ref`を足すだけで
+  既存の`describeAjvError`の`"enum"`分岐がそのまま効く。`validate.test.ts`に
+  不正な`layer`("top")・`textSize`("huge")の2ケースを足し、pathが
+  `/root/props/layer`・`/root/props/textSize`になることを確認した。
+
+**触ったファイル**: `src/core/model.ts`, `src/core/styles.ts`,
+`schema/ui.schema.json`, `src/codegen/generate.ts`, `src/preview/render.tsx`,
+`src/codegen/generate.test.ts`, `src/core/validate.test.ts`, `examples/Dock.ui`,
+`examples/generated/Dock.tsx`, `docs/book/src/ui-format.md`, `docs/book/src/core.md`
+
+**確認手順**:
+1. `npm run typecheck && npm run lint && npm test && npm run build` が通る
+   (受け入れ基準1。実施確認済み)
+2. `npm test`の`src/codegen/generate.test.ts`「受け入れ基準2」のケースが通る
+   ことを確認する(受け入れ基準2。実施確認済み)
+3. 同じく「I0-viewer-readiness.md 受け入れ基準3」のケースが通ることを
+   確認する(受け入れ基準3前半。実施確認済み)
+4. `src/core/validate.test.ts`の「不正なlayer」「不正なtextSize」のケースが
+   通ることを確認する(受け入れ基準4。実施確認済み)
+5. `mdbook build docs/book && node scripts/check-book-links.mjs` が通る
+   (受け入れ基準6。実施確認済み)
+
+### 2. CLI: リポジトリの外から呼べるようにする
+
+**やったこと**: `package.json`に`"bin": {"ui-forge": "bin/ui-forge.mjs"}`を
+足した。`bin/ui-forge.mjs`は`tsx/esm/api`の`register()`でTypeScript用のESM
+ローダーを登録したあと、`pathToFileURL`で`src/codegen/cli.ts`への絶対パスを
+file URLに変換して`import()`する薄い入口にした。`tsx`を`devDependencies`から
+`dependencies`へ移した(`ajv`は元から`dependencies`側にあったので変更不要)。
+
+**理由・退けた案**:
+- `cli.ts`をあらかじめ`esbuild`等でビルドしてJSをコミットする案は、
+  タスクシートが明示的に退けている(ADR-0001の「生成物をリポジトリに入れると
+  差分が二重になる」という考え方と同じ理由)ので採らなかった。
+- `import(cliPath)`に素朴な絶対パス文字列を渡す案は試して失敗した: Windows
+  では`C:\...`のような絶対パスはそのまま`import()`に渡せる有効なURLではない
+  (`ERR_UNSUPPORTED_ESM_URL_SCHEME`のような失敗の仕方をする)。`node:url`の
+  `pathToFileURL().href`を経由する形に直した。
+- `cli.ts`・`validate.ts`自体への変更は不要だった: `.ui`/生成物のパスは
+  `cli.ts`が`process.argv`をそのまま`readFileSync`/`writeFileSync`に渡して
+  いるだけなので、Node標準の動作としてプロセスのカレントディレクトリ基準に
+  自然に解決される。スキーマの場所(`validate.ts`の
+  `import schema from "../../schema/ui.schema.json"`)はES Modulesの相対
+  importなので、常にモジュール自身の場所(`src/core/validate.ts`)基準で
+  解決され、呼び出し側のカレントディレクトリには影響されない。どちらも
+  タスクシートが要求する「相対パスは呼び出し側のカレントディレクトリ基準、
+  スキーマの場所はcli.ts自身の場所から解決する」を既に満たしていたので、
+  変更する理由が無かった。
+- `prepare`スクリプトは作っていない(タスクシートの指示どおり。git依存の
+  インストール時に`devDependencies`まで入ってしまうため)。
+
+**触ったファイル**: `package.json`, `package-lock.json`, `bin/ui-forge.mjs`(新規)
+
+**確認手順(受け入れ基準5。実施確認済み)**:
+1. リポジトリのルートで`npm pack --pack-destination <一時ディレクトリ>`を実行し、
+   `ui-forge-0.1.0.tgz`を作る
+2. リポジトリの外(`C:\Users\Masa1\AppData\Local\Temp`の下に新しい一時フォルダ、
+   以下`<scratch>`)で`npm init -y && npm install <tgz のパス>`を実行する
+   (`devDependencies`の`react`/`vite`等は入らず、`dependencies`の
+   `tsx`/`ajv`等だけが入ることを確認した。15パッケージ)
+3. `<scratch>/examples/Dock.ui`、`<scratch>/examples/generated/Dock.tsx`に
+   リポジトリの`examples/Dock.ui`・`examples/generated/Dock.tsx`をそのまま
+   コピーする(生成物のコメント1行目に埋め込まれたソースパスの文字列
+   `examples/Dock.ui`と、`check`に渡す引数の文字列を一致させる必要がある
+   ため、ディレクトリ構成も`examples/...`に合わせる)
+4. `<scratch>`で`npx ui-forge check examples/Dock.ui examples/generated/Dock.tsx`
+   → 終了コード0
+5. 同じ場所に`npx ui-forge gen examples/Dock.ui examples/generated/Dock.tsx`を
+   実行し、書き出された内容がリポジトリの`examples/generated/Dock.tsx`と
+   バイト単位で一致することを確認した
+6. 確認後、`<scratch>`ディレクトリと生成した`.tgz`を削除した(リポジトリの
+   外にのみ作業用ファイルを置き、後片付けまで行った)
