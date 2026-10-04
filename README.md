@@ -72,6 +72,32 @@ APK をダウンロードできる（debug 署名）。バージョンタグを 
 Android SDK / NDK がこの端末に無く、コンパイルが通ることまでしか確かめられて
 いない。
 
+## 他のリポジトリから使う（CLI）
+
+`.ui` から TSX を生成する3つのサブコマンド（`gen` / `fmt` / `check`、
+[`src/codegen/cli.ts`](./src/codegen/cli.ts)）は、ui-forge をリポジトリの外から
+依存として使う前提で動く（I-0）。`devDependencies` に git 依存として入れると、
+`npx` 経由で同じコマンド名で呼べる。
+
+```json
+"devDependencies": { "ui-forge": "github:dOtOb9/ui-forge#v0.1.0" }
+```
+
+```
+npx ui-forge gen <in.ui> <out.tsx>
+npx ui-forge fmt <in.ui>
+npx ui-forge check <in.ui> <out.tsx>
+```
+
+Windows で Git の `core.autocrlf=true` だと、`checkout` のたびに `.ui` が
+CRLF に書き直される（中身は同じでも `check` が改行コードの違いで失敗する。
+U1-cli-messages.md。失敗時のメッセージに原因と対処が出るが、根本的には
+依存先のリポジトリの `.gitattributes` に次の行を足して直す）。
+
+```
+*.ui text eol=lf
+```
+
 ## リリースの出し方（D1-delivery.md D1-3）
 
 タグ（`vX.Y.Z`）を打って push すると、`.github/workflows/release.yml` が

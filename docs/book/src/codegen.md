@@ -42,8 +42,15 @@ className={`...${props.surface === "glass" ? " ...backdrop-blur-md..." : props.s
 
 ## cli.ts: gen / fmt / check
 
-[`src/codegen/cli.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/codegen/cli.ts) は `npm run ui -- <command>`（`tsx` 経由）として動く3コマンドです。
-いずれも「検証してから」何かをする、という順序を守ります。
+[`src/codegen/cli.ts`](https://github.com/dOtOb9/ui-forge/blob/main/src/codegen/cli.ts) は3コマンドを持ち、このリポジトリの中では
+`npm run ui -- <command>`、外から依存として使うときは `npx ui-forge <command>`
+として動きます（どちらも `tsx` 経由で同じ `cli.ts` を呼ぶだけ）。いずれも
+「検証してから」何かをする、という順序を守ります。
+
+利用者への案内（usage 表示・失敗時のメッセージ）は、`npm run ui -- gen ...` ではなく
+`ui-forge gen ...` のように**コマンド名だけ**の形に揃えています（U1-cli-messages.md）。
+`npm run ui` はこのリポジトリ自身の `package.json` のスクリプト名で、依存として
+使う側のリポジトリには無いためです。
 
 | コマンド | すること | 失敗の条件 |
 |---|---|---|
@@ -54,6 +61,18 @@ className={`...${props.surface === "glass" ? " ...backdrop-blur-md..." : props.s
 `check` は3点を順番に見て、**最初に失敗した段階の理由だけ**を出します。検証に
 失敗した壊れた文書に対してそのまま `format` や `generate` を呼ぶと、無意味な
 エラーになりかねないためです。
+
+### 他のリポジトリから使うときの注意: 改行コード
+
+`check`/`gen` は、`.ui` や生成物の内容が正規化後の結果と**改行コードだけ**違う
+場合、専用のメッセージ（`CRLF` と `.gitattributes` を含む）を出します
+（`src/core/format.ts` の `differsOnlyByLineEndings()`）。Windows で Git の
+`core.autocrlf=true` だと、`checkout` のたびに `.ui` が CRLF に書き直され、
+中身は同じなのに `check` が失敗することがあるためです（point-cloud-viewer の
+I-1 で実際に踏んだ問題）。依存として使うリポジトリの `.gitattributes` に
+`*.ui text eol=lf` を足すと直ります（README の「他のリポジトリから使う」参照）。
+内容そのものが違う場合は、この専用メッセージにはならず、`fmt`/`gen` を勧める
+従来のメッセージのままです。
 
 ## まず読むファイル
 
