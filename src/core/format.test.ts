@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDocument, parseDocument } from "./format";
+import { differsOnlyByLineEndings, formatDocument, parseDocument } from "./format";
 import type { UiDocument } from "./model";
 
 // キーをわざとバラバラの順番で書いた入力。正規化はこの入力のキー順に一切
@@ -81,5 +81,26 @@ describe("formatDocument", () => {
     };
     const canonicalFromReordered = formatDocument(parseDocument(JSON.stringify(reordered)));
     expect(canonicalFromReordered).toBe(canonical);
+  });
+});
+
+// U1-cli-messages.md。cli.tsのcheckが「内容そのものが壊れている」のか
+// 「改行コードだけ」なのかを区別するための判定関数。
+describe("differsOnlyByLineEndings", () => {
+  it("CRLFにしただけ(内容は同じ)ならtrue", () => {
+    const lf = formatDocument(SAMPLE_DOC);
+    const crlf = lf.replace(/\n/g, "\r\n");
+    expect(differsOnlyByLineEndings(crlf, lf)).toBe(true);
+  });
+
+  it("完全に同じ文字列ならfalse(違いが無い)", () => {
+    const lf = formatDocument(SAMPLE_DOC);
+    expect(differsOnlyByLineEndings(lf, lf)).toBe(false);
+  });
+
+  it("改行コード以外にも差がある場合はfalse", () => {
+    const lf = formatDocument(SAMPLE_DOC);
+    const crlfAndMore = lf.replace(/\n/g, "\r\n").replace("Sample", "Other");
+    expect(differsOnlyByLineEndings(crlfAndMore, lf)).toBe(false);
   });
 });

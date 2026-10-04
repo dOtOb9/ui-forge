@@ -60,3 +60,16 @@ export function formatDocument(doc: UiDocument): string {
 
   return JSON.stringify(ordered, null, 2) + "\n";
 }
+
+/**
+ * U1-cli-messages.md。`a`と`b`が、改行コード(CRLF/LF)の違いだけで異なるかを判定する
+ * (両方のCRLFをLFに変えると一致する、かつ元の時点では一致していない、の両方を見る)。
+ * `check`が`.ui`や生成物の内容を正規化後と比べるときに使う。Windowsで
+ * `core.autocrlf=true`だとcheckoutのたびに`.ui`がCRLFへ書き直されるが、中身(意味)は
+ * 変わらない。「内容そのものが壊れている」のか「改行コードだけ」なのかを呼び出し側が
+ * 区別できるようにするための、formatDocumentとは逆方向の小さな判定関数
+ * (point-cloud-viewerのI-1で実際に踏んだ問題。I1-ui-forge-dock.mdの追記参照)。
+ */
+export function differsOnlyByLineEndings(a: string, b: string): boolean {
+  return a !== b && a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
+}
